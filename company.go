@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -11,6 +13,12 @@ const (
 	Active CompanyState = iota
 	Deregistered
 	NotInBusiness
+)
+
+var (
+	dismiss = []string{"húsfélag", "sjóður", "félag", "flokkur",
+		"samband", "starfsmannafélg", "skóli", "kirkj", "samtök"}
+	suffixes = []string{"ehf", "hf", "sf", "slf", "ohf"}
 )
 
 type Address struct {
@@ -36,6 +44,8 @@ type VATNumber struct {
 type Company struct {
 	Ssid         string       `json:"ssid"`
 	Name         string       `json:"name"`
+	Domain       string       `json:"domain,omitempty"`
+	IPS          []string     `json:"ip_addresses,omitempty"`
 	PostAddress  Address      `json:"post_address,omitempty"`
 	LegalAddress Address      `json:"legal_address,omitempty"`
 	Type         string       `json:"company_type"`
@@ -43,13 +53,46 @@ type Company struct {
 	State        CompanyState `json:"company_state"`
 }
 
+// ShouldGetDetails determines whether a company is interesting
+// enough to fetch it's details page
 func (c Company) ShouldGetDetails() bool {
 	if c.State != Active {
 		return false
 	}
+
+	// Filter out individuals' ssids
 	x, _ := strconv.Atoi(string(c.Ssid[0]))
 	if x < 4 {
 		return false
 	}
+
+	// We don't care about anything that matches the dismissed strings
+	n := strings.ToLower(c.Name)
+	for _, d := range dismiss {
+		if strings.Contains(n, d) {
+			return false
+		}
+	}
 	return true
+}
+
+// GuessDomain returns a string containing a guess of which domain
+// the company has based on it's name
+func (c Company) GuessDomain() string {
+
+	n := Asciify(c.Name)
+
+    // Trim the suffixes
+	for _, s := range suffixes {
+		n = strings.TrimSuffix(n, s)
+		n = strings.TrimSuffix(n, s + ".")
+	}
+
+    // Trim spaces and illegal characters.
+	n = strings.TrimSpace(n)
+	for _, s := range []string{" ", ",", "."} {
+		n = strings.Replace(n, s, "", -1)
+	}
+
+	return fmt.Sprintf("%s.is", n)
 }
