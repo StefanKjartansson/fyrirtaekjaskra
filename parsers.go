@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/moovweb/gokogiri"
+	"net"
 	"regexp"
 	"strconv"
 	"strings"
@@ -107,6 +108,13 @@ func ParseDetails(htmlContent []byte, c *Company) (err error) {
 		}
 	}
 
+	address := c.GuessDomain()
+	res, xerr := net.LookupHost(address)
+	if xerr == nil {
+		(*c).Domain = address
+		(*c).IPS = res
+	}
+
 	return
 }
 
@@ -182,6 +190,7 @@ func ParseSearchResults(htmlContent []byte) (companies []Company, err error) {
 			continue
 		}
 		FetchDetails(&c)
+
 		companies[idx] = c
 	}
 
@@ -189,6 +198,16 @@ func ParseSearchResults(htmlContent []byte) (companies []Company, err error) {
 }
 
 func ScrapeStreet(street string, cc chan Company) {
+
+	cb := func(it []Company) int {
+		total := 0
+		for _, company := range it {
+			cc <- company
+			total++
+		}
+		return total
+	}
+
 	content, err := ReadOrGetSearch(street)
 	if err != nil {
 		fmt.Println(err)
@@ -199,11 +218,7 @@ func ScrapeStreet(street string, cc chan Company) {
 		fmt.Println(err)
 	}
 
-	count := len(c)
-
-	for _, company := range c {
-		cc <- company
-	}
+	count := cb(c)
 
 	if count >= 499 {
 
@@ -218,9 +233,7 @@ func ScrapeStreet(street string, cc chan Company) {
 			if err != nil {
 				fmt.Println(err)
 			}
-			for _, company := range c {
-				cc <- company
-			}
+			cb(c)
 		}
 
 	}
