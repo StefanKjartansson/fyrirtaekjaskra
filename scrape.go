@@ -1,31 +1,36 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
+	"labix.org/v2/mgo"
+	"log"
 	"strings"
-	"time"
 )
 
 var (
-	BufferSize = 256
+	BufferSize = 32
 	cc         = make(chan Company, BufferSize)
 )
 
 func main() {
+
+	session, err := mgo.Dial("localhost")
+	if err != nil {
+		panic(err)
+	}
+	defer session.Close()
+
+	c := session.DB("fyrirtaekjaskra").C("companies")
 
 	streets, err := ImportStreets("./gotuskra.csv")
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	total := 0
-	hasWritten := false
-
 	go func() {
 		for _, s := range streets {
 			if len(strings.Split(s, " ")) == 1 {
+				log.Println(s)
 				ScrapeStreet(s, cc)
 			}
 		}
@@ -35,16 +40,10 @@ func main() {
 		for {
 			select {
 			case ev := <-cc:
-				total++
-				if hasWritten {
-					os.Stdout.Write([]byte(","))
+				err = c.Insert(ev)
+				if err != nil {
+					panic(err)
 				}
-				b, _ := json.MarshalIndent(ev, "", "  ")
-				os.Stdout.Write(b)
-				hasWritten = true
-			case <-time.After(2 * time.Second):
-				fmt.Printf(",{\"total\": %d}\n", total)
-				os.Exit(1)
 			}
 		}
 	}()
