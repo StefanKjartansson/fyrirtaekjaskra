@@ -23,7 +23,7 @@ func TestParseDetails(t *testing.T) {
 		Ssid: ssid,
 	}
 
-	err := ParseDetails(read(fmt.Sprintf("./cache/fskra-%s.html", ssid)), &c)
+	err := ParseDetails(read(fmt.Sprintf("./test/fskra-%s.html", ssid)), &c)
 
 	if err != nil {
 		t.Error("Parsing has error:", err)
