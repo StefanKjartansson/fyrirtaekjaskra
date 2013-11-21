@@ -1,4 +1,4 @@
-package fyrirtaekjaskra
+package main
 
 import (
 	"fmt"
