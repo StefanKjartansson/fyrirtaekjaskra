@@ -82,13 +82,13 @@ func (c Company) GuessDomain() string {
 
 	n := Asciify(c.Name)
 
-    // Trim the suffixes
+	// Trim the suffixes
 	for _, s := range suffixes {
 		n = strings.TrimSuffix(n, s)
-		n = strings.TrimSuffix(n, s + ".")
+		n = strings.TrimSuffix(n, s+".")
 	}
 
-    // Trim spaces and illegal characters.
+	// Trim spaces and illegal characters.
 	n = strings.TrimSpace(n)
 	for _, s := range []string{" ", ",", "."} {
 		n = strings.Replace(n, s, "", -1)
