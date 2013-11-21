@@ -23,10 +23,12 @@ func TestParseDetails(t *testing.T) {
 		Ssid: ssid,
 	}
 
-	err := ParseDetails(read(fmt.Sprintf("./test/fskra-%s.html", ssid)), &c)
+	scraper := NewScraper()
+	scraper.ParseDetails(read(fmt.Sprintf("./test/fskra-%s.html", ssid)), &c)
+	err := <-scraper.ErrChan
 
 	if err != nil {
-		t.Error("Parsing has error:", err)
+		t.Error("Parsing has error: %s", err.Error())
 		return
 	}
 
@@ -38,16 +40,19 @@ func TestParseDetails(t *testing.T) {
 
 func TestXpathSearchTable(t *testing.T) {
 
-	companies, err := ParseSearchResults(read("./test/fskra-leit.html"))
+	scraper := NewScraper()
+	scraper.ParseSearchResults(read("./test/fskra-leit.html"))
+	err := <-scraper.ErrChan
+
 	if err != nil {
 		t.Error("Parsing has error:", err)
 		return
 	}
 
-	if companies[0].Ssid != "5407051000" ||
-		companies[0].Name != "A Einn ehf" {
-
-		t.Error("Parsing error", companies[0])
+	c := <-scraper.CompanyChan
+	if c.Ssid != "5407051000" ||
+		c.Name != "A Einn ehf" {
+		t.Errorf("Parsing error, %+v", c)
 		return
 	}
 

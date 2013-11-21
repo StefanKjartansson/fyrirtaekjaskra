@@ -2,7 +2,6 @@ package fyrirtaekjaskra
 
 import (
 	"errors"
-	"fmt"
 	"github.com/moovweb/gokogiri"
 	"net"
 	"regexp"
@@ -38,7 +37,19 @@ var (
 	ehfRegex           = regexp.MustCompile("(i?)ehf")
 )
 
-func ParseDetails(htmlContent []byte, c *Company) (err error) {
+type Scraper struct {
+	CompanyChan chan Company
+	ErrChan     chan error
+}
+
+func NewScraper() *Scraper {
+	return &Scraper{
+		CompanyChan: make(chan Company),
+		ErrChan:     make(chan error),
+	}
+}
+
+func (s *Scraper) ParseDetails(htmlContent []byte, c *Company) (err error) {
 
 	content := ""
 
@@ -118,28 +129,35 @@ func ParseDetails(htmlContent []byte, c *Company) (err error) {
 	return
 }
 
-func FetchDetails(c *Company) (err error) {
+func (s *Scraper) FetchDetails(c Company) {
 
 	content, err := ReadOrGetSSID(c.Ssid)
 	if err != nil {
+		s.ErrChan <- err
 		return
 	}
-	err = ParseDetails(content, c)
+	err = s.ParseDetails(content, &c)
+	if err != nil {
+		s.ErrChan <- err
+		return
+	}
 
-	return
+	s.CompanyChan <- c
 }
 
-func ParseSearchResults(htmlContent []byte) (companies []Company, err error) {
+func (s *Scraper) ParseSearchResults(htmlContent []byte) {
 
 	doc, err := gokogiri.ParseHtml(htmlContent)
 	defer doc.Free()
 
 	if err != nil {
+		s.ErrChan <- err
 		return
 	}
 
 	results, err := doc.Search(searchTableXPath)
 	if err != nil {
+		s.ErrChan <- err
 		return
 	}
 
@@ -152,11 +170,18 @@ func ParseSearchResults(htmlContent []byte) (companies []Company, err error) {
 	nIdx := 0
 
 	for idx, res := range results {
+
 		if idx != 0 && idx%3 == 0 {
+
 			nIdx = 0
-			companies = append(companies, company)
-			company = Company{}
+			if company.ShouldGetDetails() {
+				go s.FetchDetails(company)
+			} else {
+				s.CompanyChan <- company
+			}
+
 		}
+
 		content = res.Content()
 		switch nIdx {
 		case 0:
@@ -171,7 +196,6 @@ func ParseSearchResults(htmlContent []byte) (companies []Company, err error) {
 
 			if ehfRegex.MatchString(content) {
 				company.Type = "E1 Einkahlutafélag (ehf)"
-				//company.Type = "D1 Hlutafélag, almennt (hf)"
 			}
 
 		case 2:
@@ -181,60 +205,18 @@ func ParseSearchResults(htmlContent []byte) (companies []Company, err error) {
 		nIdx++
 	}
 
-	if company.Name != "" {
-		companies = append(companies, company)
-	}
-
-	for idx, c := range companies {
-		if !c.ShouldGetDetails() {
-			continue
-		}
-		FetchDetails(&c)
-
-		companies[idx] = c
-	}
-
-	return companies, nil
 }
 
-func ScrapeStreet(street string, cc chan Company) {
+func (s *Scraper) ScrapeList(streets []string) {
 
-	cb := func(it []Company) int {
-		total := 0
-		for _, company := range it {
-			cc <- company
-			total++
+	for _, street := range streets {
+
+		content, err := ReadOrGetSearch(street)
+		if err != nil {
+			s.ErrChan <- err
+		} else {
+			s.ParseSearchResults(content)
 		}
-		return total
 	}
 
-	content, err := ReadOrGetSearch(street)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	c, err := ParseSearchResults(content)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	count := cb(c)
-
-	if count >= 499 {
-
-		for i := 1; i < 5; i++ {
-
-			content, err = ReadOrGetSearch(fmt.Sprintf("%s %d", street, i))
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-			c, err = ParseSearchResults(content)
-			if err != nil {
-				fmt.Println(err)
-			}
-			cb(c)
-		}
-
-	}
 }
