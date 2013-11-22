@@ -44,7 +44,6 @@ func (s *Scraper) ParseDetails(r io.Reader, c *Company) (err error) {
 	doc.Find(".company .boxbody table:nth-of-type(1)>tbody>tr>td").Each(func(i int, s *goquery.Selection) {
 
 		content := strings.Trim(s.Text(), " ")
-		log.Println(content)
 		switch i {
 		case 0:
 			(*c).PostAddress, err = ParseAddress(content)
