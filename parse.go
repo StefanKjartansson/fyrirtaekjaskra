@@ -1,8 +1,9 @@
 package fyrirtaekjaskra
 
 import (
-	"bytes"
 	"github.com/PuerkitoBio/goquery"
+	"io"
+	"log"
 	"net"
 	"regexp"
 	"strconv"
@@ -33,9 +34,9 @@ func NewScraper() *Scraper {
 }
 
 //Parses details page, TODO: better error handling
-func (s *Scraper) ParseDetails(htmlContent []byte, c *Company) (err error) {
+func (s *Scraper) ParseDetails(r io.Reader, c *Company) (err error) {
 
-	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(htmlContent))
+	doc, err := goquery.NewDocumentFromReader(r)
 	if err != nil {
 		return err
 	}
@@ -43,19 +44,23 @@ func (s *Scraper) ParseDetails(htmlContent []byte, c *Company) (err error) {
 	doc.Find(".company .boxbody table:nth-of-type(1)>tbody>tr>td").Each(func(i int, s *goquery.Selection) {
 
 		content := strings.Trim(s.Text(), " ")
-
+		log.Println(content)
 		switch i {
 		case 0:
 			(*c).PostAddress, err = ParseAddress(content)
 		case 1:
-			(*c).LegalAddress, err = ParseAddress(content)
+			if content != "" {
+				(*c).LegalAddress, err = ParseAddress(content)
+			} else {
+				(*c).LegalAddress = c.PostAddress
+			}
 		case 3:
 			(*c).Type = content
 		}
 	})
 
 	vnr := VATNumber{}
-	doc.Find(".company .boxbody table:nth-of-type(2)>tbody>tr>td").Each(func(i int, s *goquery.Selection) {
+	doc.Find(".company .boxbody table.nolines>tbody>tr>td").Each(func(i int, s *goquery.Selection) {
 
 		content := strings.Trim(s.Text(), " ")
 
@@ -107,9 +112,9 @@ func (s *Scraper) FetchDetails(c Company) {
 	s.CompanyChan <- c
 }
 
-func (s *Scraper) ParseSearchResults(htmlContent []byte) {
+func (s *Scraper) ParseSearchResults(r io.Reader) {
 
-	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(htmlContent))
+	doc, err := goquery.NewDocumentFromReader(r)
 	if err != nil {
 		return
 	}
@@ -154,7 +159,7 @@ func (s *Scraper) ScrapeList(streets []string) {
 		if err != nil {
 			s.ErrChan <- err
 		} else {
-			s.ParseSearchResults(content)
+			go s.ParseSearchResults(content)
 		}
 	}
 
