@@ -1,7 +1,7 @@
 package fyrirtaekjaskra
 
 import (
-	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -17,7 +17,7 @@ func ParseAddress(s string) (a Address, err error) {
 	}
 
 	if len(parts) != 2 {
-		err = errors.New("Parts split expected to have length of 2.")
+		err = fmt.Errorf("Parts split expected to have length of 2: %s", s)
 		return
 	}
 
