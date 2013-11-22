@@ -3,7 +3,6 @@ go: 1.1
 
 install:
  - go get github.com/PuerkitoBio/goquery
- - go get github.com/djimenez/iconv-go
 
 script:
  - go test -v
