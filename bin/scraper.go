@@ -1,52 +1,61 @@
 package main
 
 import (
-	"fmt"
-	"labix.org/v2/mgo"
+	"encoding/csv"
+	"github.com/StefanKjartansson/fyrirtaekjaskra"
+	iconv "github.com/djimenez/iconv-go"
+	"io"
 	"log"
-	"strings"
+	"os"
+	"time"
 )
 
-var (
-	BufferSize = 32
-	cc         = make(chan Company, BufferSize)
-)
+func ImportStreets(filename string) (s []string, err error) {
+
+	file, err := os.Open(filename)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+
+	idx := 0
+	x, _ := iconv.NewReader(file, "iso-8859-1", "utf-8")
+	reader := csv.NewReader(x)
+	reader.Comma = ';'
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if idx != 0 {
+			s = append(s, record[3])
+		}
+		idx++
+	}
+	return
+}
 
 func main() {
 
-	session, err := mgo.Dial("localhost")
-	if err != nil {
-		panic(err)
-	}
-	defer session.Close()
-
-	c := session.DB("fyrirtaekjaskra").C("companies")
-
 	streets, err := ImportStreets("./gotuskra.csv")
 	if err != nil {
-		fmt.Println(err)
+		log.Fatal(err)
 	}
 
-	go func() {
-		for _, s := range streets {
-			if len(strings.Split(s, " ")) == 1 {
-				log.Println(s)
-				ScrapeStreet(s, cc)
-			}
-		}
-	}()
+	scraper := fyrirtaekjaskra.NewScraper()
+	scraper.ScrapeList(streets[0:50])
 
-	go func() {
-		for {
-			select {
-			case ev := <-cc:
-				err = c.Insert(ev)
-				if err != nil {
-					panic(err)
-				}
-			}
+L:
+	for {
+		select {
+		case c := <-scraper.CompanyChan:
+			log.Printf("%+v\n", c)
+		case err := <-scraper.ErrChan:
+			log.Fatal(err)
+		case <-time.After(10 * time.Second):
+			break L
 		}
-	}()
+	}
+	log.Println("exit")
 
-	select {}
 }
