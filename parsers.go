@@ -1,8 +1,8 @@
 package fyrirtaekjaskra
 
 import (
-	"errors"
-	"github.com/moovweb/gokogiri"
+	"bytes"
+	"github.com/PuerkitoBio/goquery"
 	"net"
 	"regexp"
 	"strconv"
@@ -11,24 +11,7 @@ import (
 )
 
 const (
-	shortForm        = "02.01.2006"
-	searchTableXPath = `
-        descendant-or-self::
-        div[contains(concat(' ', normalize-space(@class), ' '), ' companies ')]
-        /
-        descendant::table
-        /
-        descendant::tr
-        /
-        descendant::td`
-	tableXPath = `
-        descendant-or-self::
-        div[contains(concat(' ', normalize-space(@class), ' '), ' company ')]
-        /
-        div[contains(concat(' ', normalize-space(@class), ' '), ' boxbody ')]
-        /
-        table
-        `
+	shortForm = "02.01.2006"
 )
 
 var (
@@ -49,74 +32,53 @@ func NewScraper() *Scraper {
 	}
 }
 
+//Parses details page, TODO: better error handling
 func (s *Scraper) ParseDetails(htmlContent []byte, c *Company) (err error) {
 
-	content := ""
-
-	doc, err := gokogiri.ParseHtml(htmlContent)
-	defer doc.Free()
-
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(htmlContent))
 	if err != nil {
-		return
+		return err
 	}
 
-	tables, err := doc.Search(tableXPath)
-	if err != nil {
-		return
-	}
+	doc.Find(".company .boxbody table:nth-of-type(1)>tbody>tr>td").Each(func(i int, s *goquery.Selection) {
 
-	if len(tables) != 4 {
-		err = errors.New("Should be 4")
-		return
-	}
+		content := strings.Trim(s.Text(), " ")
 
-	for idx, table := range tables {
-
-		results, _ := table.Search("tbody/tr/td")
-
-		switch idx {
-
-		case 0: //Main info
-
-			for ridx, td := range results {
-				content = td.Content()
-				switch ridx {
-				case 0:
-					(*c).PostAddress, err = ParseAddress(content)
-				case 1:
-					(*c).LegalAddress, err = ParseAddress(content)
-				case 3:
-					(*c).Type = content
-				}
-			}
-
-		case 1: //VATNumbers
-
-			vnr := VATNumber{}
-
-			for ridx, td := range results {
-
-				content = td.Content()
-				if ridx > 0 && ridx%4 == 0 {
-					(*c).VATNumbers = append((*c).VATNumbers, vnr)
-					vnr = VATNumber{}
-				}
-				switch ridx {
-				case 0:
-					vnr.ID, _ = strconv.Atoi(strings.Trim(content, " "))
-				case 1:
-					vnr.DateOpened, _ = time.Parse(shortForm, content)
-				case 2:
-					vnr.DateClosed, _ = time.Parse(shortForm, content)
-				case 3:
-					vnr.ISATTypes, _ = ParseISATTypes(content)
-				}
-			}
-			if vnr.ID > 0 {
-				(*c).VATNumbers = append((*c).VATNumbers, vnr)
-			}
-
+		switch i {
+		case 0:
+			(*c).PostAddress, err = ParseAddress(content)
+		case 1:
+			(*c).LegalAddress, err = ParseAddress(content)
+		case 3:
+			(*c).Type = content
 		}
+	})
+
+	vnr := VATNumber{}
+	doc.Find(".company .boxbody table:nth-of-type(2)>tbody>tr>td").Each(func(i int, s *goquery.Selection) {
+
+		content := strings.Trim(s.Text(), " ")
+
+		if i > 0 && i%4 == 0 {
+			(*c).VATNumbers = append((*c).VATNumbers, vnr)
+			vnr = VATNumber{}
+		}
+
+		switch i % 4 {
+		case 0:
+			vnr.ID, _ = strconv.Atoi(content)
+		case 1:
+			vnr.DateOpened, _ = time.Parse(shortForm, content)
+		case 2:
+			vnr.DateClosed, _ = time.Parse(shortForm, content)
+		case 3:
+			vnr.ISATTypes, _ = ParseISATTypes(content)
+		}
+	})
+
+	// Add last VATNumber
+	if vnr.ID > 0 {
+		(*c).VATNumbers = append((*c).VATNumbers, vnr)
 	}
 
 	address := c.GuessDomain()
@@ -147,64 +109,41 @@ func (s *Scraper) FetchDetails(c Company) {
 
 func (s *Scraper) ParseSearchResults(htmlContent []byte) {
 
-	doc, err := gokogiri.ParseHtml(htmlContent)
-	defer doc.Free()
-
+	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(htmlContent))
 	if err != nil {
-		s.ErrChan <- err
-		return
-	}
-
-	results, err := doc.Search(searchTableXPath)
-	if err != nil {
-		s.ErrChan <- err
-		return
-	}
-
-	if len(results) == 0 {
 		return
 	}
 
 	company := Company{Type: "Unknown"}
-	content := ""
-	nIdx := 0
+	doc.Find(".companies .boxbody table>tbody>tr>td").Each(func(idx int, sel *goquery.Selection) {
 
-	for idx, res := range results {
-
-		if idx != 0 && idx%3 == 0 {
-
-			nIdx = 0
+		if idx > 0 && idx%3 == 0 {
 			if company.ShouldGetDetails() {
 				go s.FetchDetails(company)
 			} else {
 				s.CompanyChan <- company
 			}
-
 		}
 
-		content = res.Content()
-		switch nIdx {
+		switch idx % 3 {
 		case 0:
-			company.Ssid = content
+			company.Ssid = sel.Find("a").Text()
 		case 1:
+			content := sel.Text()
 			company.Name = strings.Split(content, "\n")[0]
 			if deregRegex.MatchString(content) {
 				company.State = Deregistered
 			} else if notInBusinessRegex.MatchString(content) {
 				company.State = NotInBusiness
 			}
-
-			if ehfRegex.MatchString(content) {
-				company.Type = "E1 Einkahlutafélag (ehf)"
-			}
-
 		case 2:
+			content := sel.Text()
 			company.PostAddress, _ = ParseAddress(content)
 			company.LegalAddress, _ = ParseAddress(content)
 		}
-		nIdx++
-	}
+	})
 
+	s.CompanyChan <- company
 }
 
 func (s *Scraper) ScrapeList(streets []string) {
