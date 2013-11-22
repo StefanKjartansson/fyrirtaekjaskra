@@ -3,7 +3,6 @@ package fyrirtaekjaskra
 import (
 	"github.com/PuerkitoBio/goquery"
 	"io"
-	"log"
 	"net"
 	"regexp"
 	"strconv"
