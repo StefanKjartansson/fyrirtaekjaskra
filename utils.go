@@ -35,13 +35,3 @@ func ReadOrGetURL(filename string, url string) (content []byte, err error) {
 	return content, nil
 
 }
-
-func MakeBatch(count, size int) (x [][]int) {
-	slices := count / size
-	remainder := count % size
-	for i := 0; i < slices; i++ {
-		x = append(x, []int{i * size, i*size + size})
-	}
-	x[len(x)-1][1] += remainder
-	return
-}
