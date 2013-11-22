@@ -2,18 +2,19 @@ package fyrirtaekjaskra
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
+	"os"
 	"testing"
 	"time"
 )
 
-func read(filename string) []byte {
+func read(filename string) io.Reader {
 
-	contents, err := ioutil.ReadFile(filename)
+	fi, err := os.Open(filename)
 	if err != nil {
 		panic("unable to read a file")
 	}
-	return contents
+	return fi
 }
 
 func TestParseDetails(t *testing.T) {
