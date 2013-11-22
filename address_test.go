@@ -1,7 +1,6 @@
 package fyrirtaekjaskra
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -46,7 +45,7 @@ func TestParseAddress(t *testing.T) {
 
 	for _, s := range testCases {
 		a, err = ParseAddress(s)
-		fmt.Printf("%v\n", a)
+		t.Logf("%v\n", a)
 		if err != nil {
 			t.Errorf("Error: %v parsing %s (%v).\n", err, s, a)
 			return
