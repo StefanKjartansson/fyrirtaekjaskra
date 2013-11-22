@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"testing"
+	"time"
 )
 
 func read(filename string) []byte {
@@ -24,8 +25,7 @@ func TestParseDetails(t *testing.T) {
 	}
 
 	scraper := NewScraper()
-	scraper.ParseDetails(read(fmt.Sprintf("./test/fskra-%s.html", ssid)), &c)
-	err := <-scraper.ErrChan
+	err := scraper.ParseDetails(read(fmt.Sprintf("./test/fskra-%s.html", ssid)), &c)
 
 	if err != nil {
 		t.Error("Parsing has error: %s", err.Error())
@@ -41,19 +41,20 @@ func TestParseDetails(t *testing.T) {
 func TestXpathSearchTable(t *testing.T) {
 
 	scraper := NewScraper()
-	scraper.ParseSearchResults(read("./test/fskra-leit.html"))
-	err := <-scraper.ErrChan
-
-	if err != nil {
-		t.Error("Parsing has error:", err)
-		return
-	}
+	go scraper.ParseSearchResults(read("./test/fskra-leit.html"))
 
 	c := <-scraper.CompanyChan
+	t.Logf("%+v", c)
 	if c.Ssid != "5407051000" ||
 		c.Name != "A Einn ehf" {
 		t.Errorf("Parsing error, %+v", c)
 		return
 	}
 
+	select {
+	case x := <-scraper.CompanyChan:
+		t.Logf("%+v", x)
+	case <-time.After(2 * time.Second):
+		break
+	}
 }
