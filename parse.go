@@ -2,6 +2,7 @@ package fyrirtaekjaskra
 
 import (
 	"github.com/PuerkitoBio/goquery"
+	"github.com/howbazaar/loggo"
 	"io"
 	"net"
 	"regexp"
@@ -18,6 +19,7 @@ var (
 	deregRegex         = regexp.MustCompile("(i?)Félag afskráð")
 	notInBusinessRegex = regexp.MustCompile("(i?)Rekstri hætt")
 	ehfRegex           = regexp.MustCompile("(i?)ehf")
+	logger             = loggo.GetLogger("fyrirtaekjaskra")
 )
 
 type Scraper struct {
@@ -46,9 +48,15 @@ func (s *Scraper) ParseDetails(r io.Reader, c *Company) (err error) {
 		switch i {
 		case 0:
 			(*c).PostAddress, err = ParseAddress(content)
+			if err != nil {
+				logger.Warningf("%s, %s", content, err.Error())
+			}
 		case 1:
 			if content != "" {
 				(*c).LegalAddress, err = ParseAddress(content)
+				if err != nil {
+					logger.Warningf("%s, %s", content, err.Error())
+				}
 			} else {
 				(*c).LegalAddress = c.PostAddress
 			}
@@ -98,11 +106,13 @@ func (s *Scraper) FetchDetails(c Company) {
 
 	content, err := ReadOrGetSSID(c.Ssid)
 	if err != nil {
+		logger.Warningf("%s", err)
 		s.ErrChan <- err
 		return
 	}
 	err = s.ParseDetails(content, &c)
 	if err != nil {
+		logger.Warningf("%s", err)
 		s.ErrChan <- err
 		return
 	}
@@ -141,8 +151,15 @@ func (s *Scraper) ParseSearchResults(r io.Reader) {
 			}
 		case 2:
 			content := sel.Text()
-			company.PostAddress, _ = ParseAddress(content)
-			company.LegalAddress, _ = ParseAddress(content)
+			company.PostAddress, err = ParseAddress(content)
+			if err != nil {
+				logger.Errorf("%s", err)
+			}
+			company.LegalAddress, err = ParseAddress(content)
+			if err != nil {
+				logger.Errorf("%s", err)
+			}
+
 		}
 	})
 
@@ -155,6 +172,7 @@ func (s *Scraper) ScrapeList(streets []string) {
 
 		content, err := ReadOrGetSearch(street)
 		if err != nil {
+			logger.Errorf("%s", err)
 			s.ErrChan <- err
 		} else {
 			go s.ParseSearchResults(content)
