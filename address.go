@@ -1,54 +1,26 @@
 package fyrirtaekjaskra
 
 import (
-	"fmt"
+	"regexp"
 	"strconv"
-	"strings"
+)
+
+var (
+	reAddress = regexp.MustCompile(`(?P<street>[\p{Latin}-]+)\s(?:(?P<number>[a-zA-Z0-9]+))?,?\s+(?P<postcode>\d{3}) (?P<place>[\p{Latin}]+)`)
 )
 
 // ParseAddress parses a string and returns an address
 func ParseAddress(s string) (a Address, err error) {
 
-	parts := []string{}
-	if strings.Contains(s, ",") {
-		parts = strings.Split(s, ",")
+	if reAddress.MatchString(s) {
+		parts := reAddress.FindStringSubmatch(s)[1:]
+		a.Street = parts[0]
+		a.HouseNumber = parts[1]
+		a.Postcode, err = strconv.Atoi(parts[2])
+		a.Place = parts[3]
 	} else {
-		parts = strings.Split(s, "  ")
+		logger.Warningf("Parse address: \"%s\"", s)
 	}
 
-	if len(parts) != 2 {
-		err = fmt.Errorf("Parts split expected to have length of 2: %s", s)
-		return
-	}
-
-	for idx, p := range parts {
-		x := strings.Split(strings.Trim(p, " "), " ")
-		switch idx {
-		case 0:
-			for sidx, i := range x {
-				if i == "" {
-					continue
-				}
-				switch sidx {
-				case 0:
-					a.Street = x[0]
-				case 1:
-					a.HouseNumber, err = strconv.Atoi(x[1])
-				}
-			}
-		case 1:
-			for sidx, i := range x {
-				if i == "" {
-					continue
-				}
-				switch sidx {
-				case 0:
-					a.Postcode, err = strconv.Atoi(x[0])
-				case 1:
-					a.Place = x[1]
-				}
-			}
-		}
-	}
 	return
 }

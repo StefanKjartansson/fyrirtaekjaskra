@@ -8,7 +8,7 @@ func TestParseAddress(t *testing.T) {
 
 	expected := Address{
 		Street:      "Sætúni",
-		HouseNumber: 10,
+		HouseNumber: "10",
 		Postcode:    105,
 		Place:       "Reykjavík",
 	}
@@ -26,7 +26,7 @@ func TestParseAddress(t *testing.T) {
 
 	expected = Address{
 		Street:      "Litla-Fjarðarhorn",
-		HouseNumber: 0,
+		HouseNumber: "",
 		Postcode:    510,
 		Place:       "Hólmavík",
 	}
@@ -41,6 +41,9 @@ func TestParseAddress(t *testing.T) {
 		"Fornustekkum II  781 Höfn í Hornafirði",
 		"Dunhaga 5 Tæknigarði  107 Reykjavík",
 		"Skútuvogi 1 b  104 Reykjavík",
+		"Domus Medica  Egilsgötu 3  101 Reykjavík",
+		"Domus Medica, Egilsgötu 3  101 Reykjavík",
+		"Fluggörðum 30d  101 Reykjaví",
 	}
 
 	for _, s := range testCases {
