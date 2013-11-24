@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 )
@@ -19,7 +18,7 @@ func ReadOrGetURL(filename string, url string) (io.Reader, error) {
 		return fi, nil
 	}
 
-	log.Printf("Fetching: %s\n", url)
+	logger.Debugf("Fetching: %s\n", url)
 
 	res, err := http.Get(url)
 	if err != nil {
