@@ -23,7 +23,7 @@ var (
 
 type Address struct {
 	Street      string `json:"street"`
-	HouseNumber int    `json:"number"`
+	HouseNumber string `json:"number"`
 	Postcode    int    `json:"postcode"`
 	Place       string `json:"place"`
 }
