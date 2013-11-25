@@ -43,7 +43,9 @@ func TestParseAddress(t *testing.T) {
 		"Skútuvogi 1 b  104 Reykjavík",
 		"Domus Medica  Egilsgötu 3  101 Reykjavík",
 		"Domus Medica, Egilsgötu 3  101 Reykjavík",
-		"Fluggörðum 30d  101 Reykjaví",
+		"Fluggörðum 30d  101 Reykjavík",
+		"Hafnarstræti 91-95, 600 Akureyri",
+		"Hafnarstræti 20 4.hæð, 101 Reykjavík",
 	}
 
 	for _, s := range testCases {

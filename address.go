@@ -6,7 +6,9 @@ import (
 )
 
 var (
-	reAddress = regexp.MustCompile(`(?P<street>[\p{Latin}-]+)\s(?:(?P<number>[a-zA-Z0-9]+))?,?\s+(?P<postcode>\d{3}) (?P<place>[\p{Latin}]+)`)
+	street = `(?P<street>[\p{Latin}-]+)`
+
+	reAddress = regexp.MustCompile(street + `\s?(?:(?P<number>[a-zA-Z0-9-]+))?(?:,?\s?\d\.\s?[h|H]æð)?,?\s+(?P<postcode>\d{3}) (?P<place>[\p{Latin}]+)`)
 )
 
 // ParseAddress parses a string and returns an address
