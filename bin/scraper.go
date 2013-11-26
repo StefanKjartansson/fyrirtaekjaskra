@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"github.com/StefanKjartansson/fyrirtaekjaskra"
 	iconv "github.com/djimenez/iconv-go"
+	"github.com/howbazaar/loggo"
 	"io"
 	"log"
 	"os"
@@ -42,20 +43,26 @@ func main() {
 		log.Fatal(err)
 	}
 
+	loggo.GetLogger("fyrirtaekjaskra").SetLogLevel(loggo.DEBUG)
+
 	scraper := fyrirtaekjaskra.NewScraper()
-	scraper.ScrapeList(streets[0:50])
+	scraper.ScrapeList(streets[0:120])
+
+	cnt := 0
 
 L:
 	for {
 		select {
-		case c := <-scraper.CompanyChan:
-			log.Printf("%+v\n", c)
+		case _ = <-scraper.CompanyChan:
+			//log.Printf("%+v\n", c)
+			cnt++
 		case err := <-scraper.ErrChan:
 			log.Fatal(err)
 		case <-time.After(10 * time.Second):
 			break L
 		}
 	}
-	log.Println("exit")
+
+	log.Printf("Scraped %d companies", cnt)
 
 }
