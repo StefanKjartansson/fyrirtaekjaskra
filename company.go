@@ -28,6 +28,10 @@ type Address struct {
 	Place       string `json:"place"`
 }
 
+func (a Address) String() string {
+	return fmt.Sprintf("street:%s, house:%s, postcode:%d, place:%s", a.Street, a.HouseNumber, a.Postcode, a.Place)
+}
+
 type ISATType struct {
 	Number      int    `json:"number"`
 	Description string `json:"description"`
